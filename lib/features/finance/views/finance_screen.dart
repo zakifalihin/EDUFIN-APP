@@ -713,25 +713,58 @@ class _FinanceScreenState extends State<FinanceScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Header
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          CircleAvatar(radius: 18, backgroundColor: Colors.grey, backgroundImage: NetworkImage(profilePhoto)),
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                            ),
+                            child: CircleAvatar(
+                              radius: 20,
+                              backgroundImage: NetworkImage(profilePhoto),
+                            ),
+                          ),
                           const SizedBox(width: 12),
-                          const Text('EDUFIN', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('EDUFIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Color(0xFF64748B))),
+                              SizedBox(height: 2),
+                              Text('Keuangan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                            ],
+                          ),
                         ],
                       ),
                       Row(
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.bar_chart_rounded, color: Color(0xFF0F172A)),
-                            onPressed: _showFinancialRecapSheet,
-                            tooltip: 'Rekap Keuangan',
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.bar_chart_rounded, size: 22, color: Color(0xFF0F172A)),
+                              onPressed: _showFinancialRecapSheet,
+                              tooltip: 'Rekap Keuangan',
+                            ),
                           ),
-                          const Icon(Icons.notifications_outlined, color: Color(0xFF0F172A)),
+                          const SizedBox(width: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.notifications_outlined, size: 22, color: Color(0xFF0F172A)),
+                              onPressed: () {},
+                            ),
+                          ),
                         ],
                       ),
                     ],
@@ -1060,6 +1093,27 @@ class _FinanceScreenState extends State<FinanceScreen> {
     );
   }
 
+  void _showEditDeleteTransactionSheet(TransactionModel tx) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => _EditDeleteTransactionBottomSheet(
+        controller: _controller,
+        transaction: tx,
+        onSuccess: () {
+          setState(() {});
+          if (mounted) {
+            _refreshData();
+          }
+        },
+      ),
+    );
+  }
+
   Widget _buildTransactionItem(TransactionModel tx) {
     final cat = tx.category.toUpperCase();
     IconData iconData = Icons.receipt_long;
@@ -1075,54 +1129,57 @@ class _FinanceScreenState extends State<FinanceScreen> {
     Color amountColor = tx.type == 'expense' ? Colors.red.shade600 : Colors.green.shade600;
     Color iconBgColor = tx.type == 'expense' ? Colors.red.shade50 : Colors.green.shade50;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: iconBgColor, borderRadius: BorderRadius.circular(16)),
-            child: Icon(iconData, color: amountColor, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      onTap: () => _showEditDeleteTransactionSheet(tx),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: iconBgColor, borderRadius: BorderRadius.circular(16)),
+              child: Icon(iconData, color: amountColor, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(tx.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+                  const SizedBox(height: 4),
+                  Builder(
+                    builder: (context) {
+                      final today = DateTime.now();
+                      final yesterday = today.subtract(const Duration(days: 1));
+                      String dateLabel = '';
+                      if (DateUtils.isSameDay(tx.createdAt, today)) {
+                        dateLabel = 'Today';
+                      } else if (DateUtils.isSameDay(tx.createdAt, yesterday)) {
+                        dateLabel = 'Yesterday';
+                      } else {
+                        dateLabel = DateFormat('dd MMM yyyy').format(tx.createdAt);
+                      }
+                      return Text('$dateLabel, $timeStr', style: const TextStyle(color: Colors.grey, fontSize: 12));
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(tx.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
-                const SizedBox(height: 4),
-                Builder(
-                  builder: (context) {
-                    final today = DateTime.now();
-                    final yesterday = today.subtract(const Duration(days: 1));
-                    String dateLabel = '';
-                    if (DateUtils.isSameDay(tx.createdAt, today)) {
-                      dateLabel = 'Today';
-                    } else if (DateUtils.isSameDay(tx.createdAt, yesterday)) {
-                      dateLabel = 'Yesterday';
-                    } else {
-                      dateLabel = DateFormat('dd MMM yyyy').format(tx.createdAt);
-                    }
-                    return Text('$dateLabel, $timeStr', style: const TextStyle(color: Colors.grey, fontSize: 12));
-                  },
+                Text('$sign ${currencyFormatter.format(tx.amount)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: amountColor)),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)),
+                  child: Text(tx.category, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
                 ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text('$sign ${currencyFormatter.format(tx.amount)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: amountColor)),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)),
-                child: Text(tx.category, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1619,6 +1676,331 @@ class _FinancialRecapSheetState extends State<_FinancialRecapSheet> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditDeleteTransactionBottomSheet extends StatefulWidget {
+  final FinanceController controller;
+  final TransactionModel transaction;
+  final VoidCallback onSuccess;
+
+  const _EditDeleteTransactionBottomSheet({
+    Key? key,
+    required this.controller,
+    required this.transaction,
+    required this.onSuccess,
+  }) : super(key: key);
+
+  @override
+  State<_EditDeleteTransactionBottomSheet> createState() => _EditDeleteTransactionBottomSheetState();
+}
+
+class _EditDeleteTransactionBottomSheetState extends State<_EditDeleteTransactionBottomSheet> {
+  late TextEditingController _titleController;
+  late TextEditingController _amountController;
+  late String _selectedCategory;
+  late String _selectedType;
+  late List<Map<String, dynamic>> _wallets;
+  late String _selectedWalletId;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    String cleanTitle = widget.transaction.title;
+    if (cleanTitle.startsWith('[') && cleanTitle.contains(']')) {
+      cleanTitle = cleanTitle.substring(cleanTitle.indexOf(']') + 1).trim();
+    }
+
+    _titleController = TextEditingController(text: cleanTitle);
+    _amountController = TextEditingController(text: widget.transaction.amount.toStringAsFixed(0));
+    _selectedCategory = widget.transaction.category;
+    _selectedType = widget.transaction.type;
+    
+    _wallets = widget.controller.getWalletsFromMetadata();
+    
+    String? walletName;
+    if (widget.transaction.title.startsWith('[') && widget.transaction.title.contains(']')) {
+      walletName = widget.transaction.title.substring(1, widget.transaction.title.indexOf(']')).trim().toUpperCase();
+    }
+    
+    final wIdx = _wallets.indexWhere((w) => w['name'].toString().toUpperCase() == walletName);
+    if (wIdx != -1) {
+      _selectedWalletId = _wallets[wIdx]['id'];
+    } else {
+      _selectedWalletId = _wallets.isNotEmpty ? _wallets.first['id'] : '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  void _submitUpdate() async {
+    final title = _titleController.text.trim();
+    final amount = double.tryParse(_amountController.text.trim()) ?? 0;
+
+    if (title.isEmpty || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Form tidak boleh kosong atau bernilai nol!'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final error = await widget.controller.updateTransaction(
+      oldTx: widget.transaction,
+      newTitle: title,
+      newAmount: amount,
+      newCategory: _selectedCategory,
+      newType: _selectedType,
+      newWalletId: _selectedWalletId,
+    );
+
+    setState(() => _isLoading = false);
+
+    if (error == null) {
+      widget.onSuccess();
+      if (mounted) Navigator.pop(context);
+    } else {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            elevation: 12,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFFEE2E2), width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFEF4444),
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Transaksi Ditolak',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    error.contains('tidak mencukupi') 
+                        ? 'Saldo dompet tidak mencukupi untuk melakukan pengeluaran ini. Silakan gunakan dompet lain atau ubah nominal!'
+                        : 'Gagal mengubah transaksi: $error',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF64748B),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F172A),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text(
+                        'Paham, Kembali',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _deleteTx() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus Transaksi?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Apakah Anda yakin ingin menghapus transaksi ini? Saldo dompet akan disesuaikan kembali.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    final error = await widget.controller.deleteTransaction(widget.transaction);
+    setState(() => _isLoading = false);
+
+    if (error == null) {
+      widget.onSuccess();
+      if (mounted) Navigator.pop(context);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghapus: $error'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Detail & Edit Transaksi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _titleController,
+            decoration: InputDecoration(
+              labelText: 'Judul Transaksi',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _amountController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Jumlah Uang (Rupiah)',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Dompet',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            value: _selectedWalletId,
+            items: _wallets
+                .map((w) => DropdownMenuItem<String>(
+                      value: w['id'],
+                      child: Text(w['name']),
+                    ))
+                .toList(),
+            onChanged: (val) => setState(() => _selectedWalletId = val ?? ''),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Jenis Transaksi',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            value: _selectedType,
+            items: const [
+              DropdownMenuItem(value: 'income', child: Text('Pemasukan (Income)')),
+              DropdownMenuItem(value: 'expense', child: Text('Pengeluaran (Expense)')),
+            ],
+            onChanged: (val) => setState(() => _selectedType = val ?? 'expense'),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: 'Kategori',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            value: _selectedCategory,
+            items: const [
+              DropdownMenuItem(value: 'MAKANAN', child: Text('Makanan & Minuman')),
+              DropdownMenuItem(value: 'PENDIDIKAN', child: Text('Pendidikan / Kuliah')),
+              DropdownMenuItem(value: 'SOSIAL', child: Text('Sosial / Hiburan')),
+              DropdownMenuItem(value: 'TRANSPORTASI', child: Text('Transportasi')),
+              DropdownMenuItem(value: 'KESEHATAN', child: Text('Kesehatan')),
+              DropdownMenuItem(value: 'LAINNYA', child: Text('Lainnya')),
+            ],
+            onChanged: (val) => setState(() => _selectedCategory = val ?? 'LAINNYA'),
+          ),
+          const SizedBox(height: 24),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator(color: Color(0xFF0F172A)))
+          else ...[
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0F172A),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              onPressed: _submitUpdate,
+              child: const Text('Simpan Perubahan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Colors.red.shade400),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              onPressed: _deleteTx,
+              icon: Icon(Icons.delete_forever, color: Colors.red.shade600),
+              label: Text('Hapus Transaksi', style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.bold)),
+            ),
+          ],
+          const SizedBox(height: 32),
         ],
       ),
     );

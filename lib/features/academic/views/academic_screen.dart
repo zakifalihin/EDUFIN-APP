@@ -179,7 +179,6 @@ class _AcademicScreenState extends State<AcademicScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. HEADER (tanpa tombol Add manual)
               Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Row(
@@ -187,15 +186,38 @@ class _AcademicScreenState extends State<AcademicScreen> {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundImage: NetworkImage(profilePhoto),
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                          ),
+                          child: CircleAvatar(
+                            radius: 20,
+                            backgroundImage: NetworkImage(profilePhoto),
+                          ),
                         ),
                         const SizedBox(width: 12),
-                        const Text('EDUFIN', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('EDUFIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Color(0xFF64748B))),
+                            SizedBox(height: 2),
+                            Text('Akademik', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                          ],
+                        ),
                       ],
                     ),
-                    const Icon(Icons.notifications_outlined, size: 28, color: Color(0xFF0F172A)),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.notifications_outlined, size: 22, color: Color(0xFF0F172A)),
+                        onPressed: () {},
+                      ),
+                    ),
                   ],
                 ),
               ),

@@ -220,6 +220,103 @@ class FinanceController {
     }
   }
 
+  String? _getWalletNameFromTitle(String title) {
+    if (title.startsWith('[') && title.contains(']')) {
+      return title.substring(1, title.indexOf(']')).trim().toUpperCase();
+    }
+    return null;
+  }
+
+  Future<String?> deleteTransaction(TransactionModel tx) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return 'User belum login';
+
+      final walletName = _getWalletNameFromTitle(tx.title);
+      if (walletName != null) {
+        final wallets = getWalletsFromMetadata();
+        final idx = wallets.indexWhere((w) => w['name'].toString().toUpperCase() == walletName);
+        if (idx != -1) {
+          final double balance = (wallets[idx]['balance'] ?? 0.0).toDouble();
+          if (tx.type == 'expense') {
+            wallets[idx]['balance'] = balance + tx.amount;
+          } else {
+            wallets[idx]['balance'] = balance - tx.amount;
+          }
+          await saveWalletsToMetadata(wallets);
+          await syncDatabaseWalletBalance(wallets);
+        }
+      }
+
+      await _supabase.from('transactions').delete().eq('id', tx.id);
+      return null;
+    } catch (e) {
+      print('Error delete transaction: $e');
+      return e.toString();
+    }
+  }
+
+  Future<String?> updateTransaction({
+    required TransactionModel oldTx,
+    required String newTitle,
+    required double newAmount,
+    required String newCategory,
+    required String newType,
+    required String newWalletId,
+  }) async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return 'User belum login';
+
+      final oldWalletName = _getWalletNameFromTitle(oldTx.title);
+      final wallets = getWalletsFromMetadata();
+      
+      if (oldWalletName != null) {
+        final idx = wallets.indexWhere((w) => w['name'].toString().toUpperCase() == oldWalletName);
+        if (idx != -1) {
+          final double balance = (wallets[idx]['balance'] ?? 0.0).toDouble();
+          if (oldTx.type == 'expense') {
+            wallets[idx]['balance'] = balance + oldTx.amount;
+          } else {
+            wallets[idx]['balance'] = balance - oldTx.amount;
+          }
+        }
+      }
+
+      final newIdx = wallets.indexWhere((w) => w['id'] == newWalletId);
+      if (newIdx == -1) return 'Dompet baru tidak ditemukan';
+      
+      final newWallet = wallets[newIdx];
+      final double currentBalance = (newWallet['balance'] ?? 0.0).toDouble();
+      final String newWalletName = newWallet['name'].toString().toUpperCase();
+
+      if (newType == 'expense') {
+        if (currentBalance - newAmount < 0) {
+          return 'Saldo dompet $newWalletName tidak mencukupi untuk pengeluaran ini!';
+        }
+        wallets[newIdx]['balance'] = currentBalance - newAmount;
+      } else {
+        wallets[newIdx]['balance'] = currentBalance + newAmount;
+      }
+
+      await saveWalletsToMetadata(wallets);
+      await syncDatabaseWalletBalance(wallets);
+
+      final formattedTitle = '[$newWalletName] $newTitle';
+      await _supabase.from('transactions').update({
+        'title': formattedTitle,
+        'amount': newAmount,
+        'category': newCategory,
+        'type': newType,
+      }).eq('id', oldTx.id);
+
+      return null;
+    } catch (e) {
+      print('Error update transaction: $e');
+      return e.toString();
+    }
+  }
+
   // CRUD DOMPET 1: Tambah Dompet Baru
   Future<String?> addWallet({
     required String name,

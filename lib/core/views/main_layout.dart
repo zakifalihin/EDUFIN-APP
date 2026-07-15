@@ -52,6 +52,7 @@ class _MainLayoutState extends State<MainLayout> {
       body: _pages[_currentIndex], 
       
       floatingActionButton: FloatingActionButton(
+        shape: const CircleBorder(),
         // 3. ARAHKAN TOMBOL KE FUNGSI SCANNER
         onPressed: () => _showDirectReceiptScanner(context),
         backgroundColor: const Color(0xFFFFC107),

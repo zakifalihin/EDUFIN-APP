@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart';
 import 'package:edufin/features/finance/controllers/finance_controller.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -15,21 +14,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
   final FinanceController _financeController = FinanceController();
 
-  bool _isLoadingData = true;
   String _userName = 'Pengguna EduFin';
   String _profilePhoto = '';
   String _institute = 'Global Institute of Technology & Finance';
-  
-  int _completedTasksCount = 0;
-  double _totalSavings = 0.0;
-  int _schedulesCount = 0;
 
   // Gmail Sync State variables
   String _gmailUser = '';
   bool _isGmailConnected = false;
   bool _isSyncingGmail = false;
-
-  final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
   @override
   void initState() {
@@ -38,11 +30,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfileData() async {
-    setState(() => _isLoadingData = true);
     try {
       final user = _supabase.auth.currentUser;
       if (user != null) {
-        // 1. Get User profile metadata info
         final metadata = user.userMetadata ?? {};
         _userName = metadata['full_name']?.toString() ?? user.email?.split('@')[0] ?? 'Pengguna EduFin';
         _profilePhoto = metadata['avatar_url']?.toString() ?? 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(_userName)}&background=0F172A&color=fff&size=150&bold=true';
@@ -51,33 +41,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Get Gmail status
         _gmailUser = metadata['gmail_user']?.toString() ?? '';
         _isGmailConnected = metadata['gmail_connected'] == true && _gmailUser.isNotEmpty;
-
-        // 2. Fetch completed tasks count from Supabase
-        final completedTasksRes = await _supabase
-            .from('tasks')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('is_completed', true);
-        _completedTasksCount = (completedTasksRes as List).length;
-
-        // 3. Sum savings balances from metadata wallets
-        final List<dynamic> wallets = _financeController.getWalletsFromMetadata();
-        _totalSavings = wallets.fold(0.0, (sum, w) => sum + (w['balance'] ?? 0.0).toDouble());
-
-        // 4. Fetch academic schedules count from Supabase
-        final schedulesRes = await _supabase
-            .from('academic_schedules')
-            .select('id')
-            .eq('user_id', user.id);
-        _schedulesCount = (schedulesRes as List).length;
       }
     } catch (e) {
       debugPrint('Error loading profile info: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoadingData = false);
-      }
     }
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _openSheet(Widget sheet) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => sheet,
+    );
   }
 
   void _connectGoogleAccount() async {
@@ -321,35 +303,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // 3. Row Statistik Tiga Kolom
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatCard(
-                        value: '$_completedTasksCount',
-                        label: 'Tasks Done',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildStatCard(
-                        value: _isLoadingData 
-                            ? '...' 
-                            : currencyFormatter.format(_totalSavings).replaceAll('Rp ', 'Rp'),
-                        label: 'Savings',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildStatCard(
-                        value: '${_schedulesCount * 3}h',
-                        label: 'Study',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
                 // 4. Gmail Connection Card (Relocated from Finance)
                 _buildGmailSyncCard(),
                 const SizedBox(height: 24),
@@ -367,6 +320,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.person_outline_rounded,
                         title: 'Personal Information',
                         showChevron: true,
+                        onTap: () => _openSheet(
+                          _PersonalInformationSheet(
+                            supabase: _supabase,
+                            onSaved: _loadProfileData,
+                          ),
+                        ),
                       ),
                       _buildDivider(),
                       _buildMenuOption(
@@ -374,31 +333,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         title: 'Academic Settings',
                         subtitle: 'Syllabus, GPA tracking',
                         showChevron: true,
-                      ),
-                      _buildDivider(),
-                      _buildMenuOption(
-                        icon: Icons.account_balance_wallet_outlined,
-                        title: 'Financial Goals',
-                        subtitle: 'Target: MacBook Pro M3',
-                        showChevron: true,
+                        onTap: () => _openSheet(
+                          _AcademicSettingsSheet(supabase: _supabase),
+                        ),
                       ),
                       _buildDivider(),
                       _buildMenuOption(
                         icon: Icons.security_rounded,
                         title: 'Security & Privacy',
                         showChevron: true,
+                        onTap: () => _openSheet(
+                          _SecurityPrivacySheet(supabase: _supabase),
+                        ),
                       ),
                       _buildDivider(),
                       _buildMenuOption(
                         icon: Icons.notifications_none_rounded,
                         title: 'Notifications',
                         showChevron: true,
+                        onTap: () => _openSheet(
+                          _NotificationsSheet(supabase: _supabase),
+                        ),
                       ),
                       _buildDivider(),
                       _buildMenuOption(
                         icon: Icons.help_outline_rounded,
                         title: 'Help Center',
                         showChevron: true,
+                        onTap: () => _openSheet(const _HelpCenterSheet()),
                       ),
                     ],
                   ),
@@ -429,39 +391,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatCard({required String value, required String label}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0F172A),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFF94A3B8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildGmailSyncCard() {
     return Container(
@@ -546,48 +476,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     String? subtitle,
     required bool showChevron,
+    VoidCallback? onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: const Color(0xFF475569), size: 20),
             ),
-            child: Icon(icon, color: const Color(0xFF475569), size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    subtitle,
+                    title,
                     style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF94A3B8),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          if (showChevron)
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 20),
-        ],
+            if (showChevron)
+              const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 20),
+          ],
+        ),
       ),
     );
   }
@@ -599,6 +534,470 @@ class _ProfileScreenState extends State<ProfileScreen> {
       indent: 20,
       endIndent: 20,
       color: Color(0xFFF1F5F9),
+    );
+  }
+}
+
+class _PersonalInformationSheet extends StatefulWidget {
+  final SupabaseClient supabase;
+  final VoidCallback onSaved;
+
+  const _PersonalInformationSheet({
+    Key? key,
+    required this.supabase,
+    required this.onSaved,
+  }) : super(key: key);
+
+  @override
+  State<_PersonalInformationSheet> createState() => _PersonalInformationSheetState();
+}
+
+class _PersonalInformationSheetState extends State<_PersonalInformationSheet> {
+  late TextEditingController _nameController;
+  late TextEditingController _instituteController;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = widget.supabase.auth.currentUser;
+    final metadata = user?.userMetadata ?? {};
+    _nameController = TextEditingController(text: metadata['full_name']?.toString() ?? user?.email?.split('@')[0] ?? '');
+    _instituteController = TextEditingController(text: metadata['institute']?.toString() ?? 'Global Institute of Technology & Finance');
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _instituteController.dispose();
+    super.dispose();
+  }
+
+  void _saveInfo() async {
+    final name = _nameController.text.trim();
+    final institute = _instituteController.text.trim();
+    if (name.isEmpty) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await widget.supabase.auth.updateUser(
+        UserAttributes(data: {
+          'full_name': name,
+          'institute': institute,
+        })
+      );
+      widget.onSaved();
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informasi pribadi berhasil disimpan!'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Personal Information', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _nameController,
+            decoration: InputDecoration(
+              labelText: 'Nama Lengkap',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _instituteController,
+            decoration: InputDecoration(
+              labelText: 'Nama Kampus/Institusi',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _isLoading
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFF0F172A)))
+              : ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F172A),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: _saveInfo,
+                  child: const Text('Simpan Perubahan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+}
+
+class _AcademicSettingsSheet extends StatefulWidget {
+  final SupabaseClient supabase;
+
+  const _AcademicSettingsSheet({Key? key, required this.supabase}) : super(key: key);
+
+  @override
+  State<_AcademicSettingsSheet> createState() => _AcademicSettingsSheetState();
+}
+
+class _AcademicSettingsSheetState extends State<_AcademicSettingsSheet> {
+  late TextEditingController _gpaController;
+  late TextEditingController _targetGpaController;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = widget.supabase.auth.currentUser;
+    final metadata = user?.userMetadata ?? {};
+    _gpaController = TextEditingController(text: metadata['current_gpa']?.toString() ?? '3.50');
+    _targetGpaController = TextEditingController(text: metadata['target_gpa']?.toString() ?? '4.00');
+  }
+
+  @override
+  void dispose() {
+    _gpaController.dispose();
+    _targetGpaController.dispose();
+    super.dispose();
+  }
+
+  void _saveAcademicSettings() async {
+    final gpa = double.tryParse(_gpaController.text) ?? 0.0;
+    final target = double.tryParse(_targetGpaController.text) ?? 0.0;
+
+    setState(() => _isLoading = true);
+    try {
+      await widget.supabase.auth.updateUser(
+        UserAttributes(data: {
+          'current_gpa': gpa,
+          'target_gpa': target,
+        })
+      );
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pengaturan akademik berhasil disimpan!'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Academic Settings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _gpaController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'IPK Sekarang (Current GPA)',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _targetGpaController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Target IPK (Target GPA)',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _isLoading
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFF0F172A)))
+              : ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F172A),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: _saveAcademicSettings,
+                  child: const Text('Simpan Setelan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+}
+
+class _SecurityPrivacySheet extends StatefulWidget {
+  final SupabaseClient supabase;
+
+  const _SecurityPrivacySheet({Key? key, required this.supabase}) : super(key: key);
+
+  @override
+  State<_SecurityPrivacySheet> createState() => _SecurityPrivacySheetState();
+}
+
+class _SecurityPrivacySheetState extends State<_SecurityPrivacySheet> {
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _updatePassword() async {
+    final password = _passwordController.text.trim();
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password minimal harus 6 karakter!'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await widget.supabase.auth.updateUser(UserAttributes(password: password));
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password berhasil diperbarui!'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memperbarui password: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+        left: 24,
+        right: 24,
+        top: 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Security & Privacy', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Password Baru',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _isLoading
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFF0F172A)))
+              : ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F172A),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: _updatePassword,
+                  child: const Text('Perbarui Password', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotificationsSheet extends StatefulWidget {
+  final SupabaseClient supabase;
+
+  const _NotificationsSheet({Key? key, required this.supabase}) : super(key: key);
+
+  @override
+  State<_NotificationsSheet> createState() => _NotificationsSheetState();
+}
+
+class _NotificationsSheetState extends State<_NotificationsSheet> {
+  bool _academicReminders = true;
+  bool _budgetAlerts = true;
+  bool _weeklySummary = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final metadata = widget.supabase.auth.currentUser?.userMetadata ?? {};
+    _academicReminders = metadata['notify_academic'] ?? true;
+    _budgetAlerts = metadata['notify_budget'] ?? true;
+    _weeklySummary = metadata['notify_weekly'] ?? false;
+  }
+
+  void _saveNotificationSettings() async {
+    try {
+      await widget.supabase.auth.updateUser(
+        UserAttributes(data: {
+          'notify_academic': _academicReminders,
+          'notify_budget': _budgetAlerts,
+          'notify_weekly': _weeklySummary,
+        })
+      );
+      if (mounted) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Setelan notifikasi disimpan!'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan setelan: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Notifications Settings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+          const SizedBox(height: 20),
+          SwitchListTile(
+            title: const Text('Pengingat Jadwal Kuliah', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Kirim notifikasi untuk kelas dan tugas kuliah terdekat'),
+            value: _academicReminders,
+            activeColor: const Color(0xFF0F172A),
+            onChanged: (val) => setState(() => _academicReminders = val),
+          ),
+          const Divider(),
+          SwitchListTile(
+            title: const Text('Peringatan Anggaran (Budget)', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Peringatan jika pengeluaran melebihi batas anggaran dompet'),
+            value: _budgetAlerts,
+            activeColor: const Color(0xFF0F172A),
+            onChanged: (val) => setState(() => _budgetAlerts = val),
+          ),
+          const Divider(),
+          SwitchListTile(
+            title: const Text('Ringkasan Mingguan', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Laporan rekapitulasi keuangan mingguan otomatis'),
+            value: _weeklySummary,
+            activeColor: const Color(0xFF0F172A),
+            onChanged: (val) => setState(() => _weeklySummary = val),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F172A),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: _saveNotificationSettings,
+            child: const Text('Simpan Setelan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+class _HelpCenterSheet extends StatelessWidget {
+  const _HelpCenterSheet({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Help Center', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildFaqItem(
+            question: 'Bagaimana cara menghubungkan email Gmail?',
+            answer: 'Pergi ke menu Profile, tekan Hubungkan Gmail, lalu login aman dengan Google OAuth 2.0 1-klik.',
+          ),
+          _buildFaqItem(
+            question: 'Mengapa saldo bank saya tidak boleh minus?',
+            answer: 'Saldo bank merepresentasikan uang asli Anda sehingga tidak boleh negatif. Gunakan anggaran jajan jika ingin mencatat anggaran minus.',
+          ),
+          _buildFaqItem(
+            question: 'Bagaimana cara menambahkan jadwal kuliah baru?',
+            answer: 'Pergi ke tab Academic, scroll ke bawah, lalu tekan tombol + Add New di sebelah judul Academic Schedule.',
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F172A),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Layanan dukungan pelanggan dihubungi via email: support@edufin.com')),
+              );
+            },
+            icon: const Icon(Icons.mail, color: Colors.white),
+            label: const Text('Hubungi Support Kami', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFaqItem({required String question, required String answer}) {
+    return ExpansionTile(
+      title: Text(question, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(answer, style: const TextStyle(fontSize: 13, color: Colors.grey, height: 1.5)),
+        ),
+      ],
     );
   }
 }

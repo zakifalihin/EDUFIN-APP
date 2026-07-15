@@ -315,35 +315,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // HEADER
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 24,
+                        Row(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                              ),
+                              child: CircleAvatar(
+                                radius: 20,
                                 backgroundImage: NetworkImage(profilePhoto),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(_getGreeting(), style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w500)),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      userName, 
-                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('EDUFIN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Color(0xFF64748B))),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Halo, ${userName.split(" ")[0]}', 
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            ),
+                          ],
                         ),
                         Container(
                           decoration: BoxDecoration(
@@ -352,7 +351,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
                           child: IconButton(
-                            icon: const Icon(Icons.notifications_outlined, size: 24, color: Color(0xFF0F172A)),
+                            icon: const Icon(Icons.notifications_outlined, size: 22, color: Color(0xFF0F172A)),
                             onPressed: () {
                               // Fitur notifikasi
                             },
