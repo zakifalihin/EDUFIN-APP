@@ -43,9 +43,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final user = Supabase.instance.client.auth.currentUser;
       final savedWalletId = user?.userMetadata?['selected_dashboard_wallet_id']?.toString() ?? 'overall';
       final results = await Future.wait([
-        _taskController.getUrgentTasks(), // Index [0]
-        _dashController.getDailyBudget(), // Index [1]
-        _taskController.getCompletedTasks(), // Index [2]
+        _taskController.getUrgentTasks(),
+        _dashController.getDailyBudget(),
+        _taskController.getCompletedTasks(),
       ]);
 
       if (mounted) {

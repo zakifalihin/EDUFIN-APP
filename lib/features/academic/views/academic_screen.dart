@@ -457,43 +457,7 @@ class _AcademicScreenState extends State<AcademicScreen> {
                               );
                             },
                           ),
-
                         const SizedBox(height: 32),
-
-                        // BANNER KRS GENERATOR
-                        GestureDetector(
-                          onTap: () => showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                            ),
-                            builder: (ctx) => _KrsParserBottomSheet(onParse: _parseAndInsertKrs),
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(color: const Color(0xFF0F172A), borderRadius: BorderRadius.circular(16)),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.auto_awesome, color: Color(0xFFFFC107), size: 24),
-                                SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Generate Jadwal Otomatis', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                                      SizedBox(height: 4),
-                                      Text('Foto KRS atau copy teks dari grup kelas.', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                                    ],
-                                  ),
-                                ),
-                                Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 40),
                       ],
                     ),
                   );

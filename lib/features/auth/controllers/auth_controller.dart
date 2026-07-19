@@ -14,6 +14,7 @@ class AuthController {
         email: email,
         password: password,
         data: {'full_name': fullName}, // Menyimpan nama lengkap ke metadata user
+        emailRedirectTo: 'com.example.edufin://login-callback',
       );
       return null; // Mengembalikan null jika sukses (tidak ada error)
     } on AuthException catch (e) {
@@ -44,5 +45,38 @@ class AuthController {
   // 3. Fungsi Logout
   Future<void> signOut() async {
     await _supabase.auth.signOut();
+  }
+
+  // 4. Fungsi Login dengan Google
+  Future<String?> signInWithGoogle() async {
+    try {
+      await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'com.example.edufin://login-callback',
+        queryParams: {
+          'prompt': 'select_account',
+        },
+      );
+      return null;
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  // 5. Fungsi Reset Sandi (Forgot Password)
+  Future<String?> resetPassword(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'com.example.edufin://login-callback',
+      );
+      return null; // Sukses
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return e.toString();
+    }
   }
 }

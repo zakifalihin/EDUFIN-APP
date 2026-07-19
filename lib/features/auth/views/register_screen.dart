@@ -9,7 +9,7 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen> with WidgetsBindingObserver {
   // 1. Deklarasi Controller
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -19,6 +19,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isAgreed = false;
   bool _isObscured = true;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   // 2. Fungsi Eksekusi Register
   void _handleRegister() async {
@@ -30,21 +47,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
       fullName: _nameController.text.trim(),
     );
 
-    setState(() => _isLoading = false);
-
-    if (error == null) {
-      if (mounted) {
-        // Jika sukses, arahkan ke MainLayout atau arahkan kembali ke Login dengan pesan sukses
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (error == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registrasi Berhasil!'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Registrasi Berhasil! Silakan cek email Anda untuk verifikasi.'),
+            backgroundColor: Colors.green,
+          ),
         );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainLayout()),
+        Navigator.pop(context); // Kembali ke halaman Login
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error), backgroundColor: Colors.red),
         );
       }
-    } else {
+    }
+  }
+
+  void _handleGoogleLogin() async {
+    setState(() => _isLoading = true);
+
+    final error = await _authController.signInWithGoogle();
+
+    if (error != null) {
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error), backgroundColor: Colors.red),
         );
@@ -54,6 +82,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -71,29 +100,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 20),
-              // Logo Placeholder
+              // Logo
               Center(
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                      )
-                    ],
-                  ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.menu_book, size: 30, color: Color(0xFF0F172A)),
-                      SizedBox(height: 4),
-                      Text('EDUFIN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
-                    ],
-                  ),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 100, // Ukuran pas, tidak terlalu besar atau kecil
+                  height: 100,
+                  fit: BoxFit.contain,
                 ),
               ),
               const SizedBox(height: 32),
@@ -221,7 +234,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               // Google Button
               OutlinedButton(
-                onPressed: () {},
+                onPressed: _isLoading ? null : _handleGoogleLogin,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

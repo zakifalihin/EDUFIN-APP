@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:edufin/features/finance/controllers/finance_controller.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../../auth/views/auth_gate.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -12,16 +12,12 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final FinanceController _financeController = FinanceController();
 
   String _userName = 'Pengguna EduFin';
   String _profilePhoto = '';
   String _institute = 'Global Institute of Technology & Finance';
 
-  // Gmail Sync State variables
-  String _gmailUser = '';
-  bool _isGmailConnected = false;
-  bool _isSyncingGmail = false;
+
 
   @override
   void initState() {
@@ -38,9 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _profilePhoto = metadata['avatar_url']?.toString() ?? 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(_userName)}&background=0F172A&color=fff&size=150&bold=true';
         _institute = metadata['institute']?.toString() ?? 'Global Institute of Technology & Finance';
 
-        // Get Gmail status
-        _gmailUser = metadata['gmail_user']?.toString() ?? '';
-        _isGmailConnected = metadata['gmail_connected'] == true && _gmailUser.isNotEmpty;
+
       }
     } catch (e) {
       debugPrint('Error loading profile info: $e');
@@ -62,60 +56,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _connectGoogleAccount() async {
-    setState(() => _isSyncingGmail = true);
-    try {
-      final googleSignIn = GoogleSignIn.instance;
-      final account = await googleSignIn.authenticate();
-      if (account == null) {
-        setState(() => _isSyncingGmail = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Koneksi Google dibatalkan.'), backgroundColor: Colors.orange),
-        );
-        return;
-      }
-
-      final user = _supabase.auth.currentUser;
-      if (user == null) {
-        setState(() => _isSyncingGmail = false);
-        return;
-      }
-
-      await _supabase.auth.updateUser(
-        UserAttributes(data: {
-          'gmail_connected': true,
-          'gmail_user': account.email,
-        })
-      );
-
-      await _loadProfileData();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Berhasil menghubungkan Gmail (${account.email})!'), backgroundColor: Colors.green),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menghubungkan Google: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      setState(() => _isSyncingGmail = false);
-    }
-  }
-
-  void _disconnectGoogleAccount() async {
+  void _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Putuskan Gmail?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Apakah Anda yakin ingin memutuskan akses pembacaan Gmail transaksi dari EduFin?'),
+        title: const Text('Konfirmasi Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Apakah Anda yakin ingin keluar dari akun ini?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Batal', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Putuskan', style: TextStyle(color: Colors.white)),
+            child: const Text('Keluar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -123,62 +82,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirm != true) return;
 
-    setState(() => _isSyncingGmail = true);
-    try {
-      final googleSignIn = GoogleSignIn.instance;
-      await googleSignIn.signOut();
-
-      final user = _supabase.auth.currentUser;
-      if (user == null) return;
-
-      await _supabase.auth.updateUser(
-        UserAttributes(data: {
-          'gmail_connected': false,
-          'gmail_user': null,
-        })
-      );
-
-      await _loadProfileData();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Koneksi Gmail berhasil diputuskan.'), backgroundColor: Colors.green),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memutuskan Google: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      setState(() => _isSyncingGmail = false);
-    }
-  }
-
-  void _syncEmailTransactions() async {
-    setState(() => _isSyncingGmail = true);
-    final res = await _financeController.syncTransactionsFromEmail();
-    if (mounted) {
-      setState(() => _isSyncingGmail = false);
-      final bool success = res['success'] ?? false;
-      final String msg = res['message'] ?? '';
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: success ? Colors.green : Colors.red,
-        ),
-      );
-
-      if (success) {
-        _loadProfileData();
-      }
-    }
-  }
-
-  void _handleLogout() async {
     try {
       await _supabase.auth.signOut();
+      
+      // Bersihkan sesi Google Sign-in lokal jika ada
+      try {
+        await GoogleSignIn.instance.signOut();
+      } catch (googleError) {
+        debugPrint('Google Sign-in signout warning: $googleError');
+      }
+
+      if (mounted) {
+        // Kembalikan ke AuthGate dan hapus semua tumpukan halaman navigasi sebelumnya
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const AuthGate()),
+          (route) => false,
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal logout: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal logout: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -303,9 +229,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // 4. Gmail Connection Card (Relocated from Finance)
-                _buildGmailSyncCard(),
-                const SizedBox(height: 24),
+
 
                 // 5. White card containing options list
                 Container(
@@ -393,83 +317,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
 
 
-  Widget _buildGmailSyncCard() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: _isGmailConnected ? const Color(0xFFEFF6FF) : const Color(0xFFFEF3C7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: _isGmailConnected ? const Color(0xFFBFDBFE) : const Color(0xFFFDE68A),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            _isGmailConnected ? Icons.mark_email_read_rounded : Icons.mail_lock_rounded,
-            color: _isGmailConnected ? const Color(0xFF1D4ED8) : const Color(0xFFB45309),
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _isGmailConnected ? 'Gmail Terhubung ($_gmailUser)' : 'Pencatatan Otomatis dari Gmail',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: _isGmailConnected ? const Color(0xFF1E3A8A) : const Color(0xFF78350F),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _isGmailConnected ? 'Ketuk untuk sinkronisasi transaksi' : 'Hubungkan Gmail & sandi aplikasi Anda',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: _isGmailConnected ? const Color(0xFF3B82F6) : const Color(0xFFD97706),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_isSyncingGmail)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1D4ED8)),
-            )
-          else if (_isGmailConnected) ...[
-            IconButton(
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              icon: const Icon(Icons.sync_rounded, color: Color(0xFF1D4ED8)),
-              onPressed: _syncEmailTransactions,
-            ),
-            const SizedBox(width: 12),
-            IconButton(
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              icon: const Icon(Icons.link_off_rounded, color: Colors.red),
-              onPressed: _disconnectGoogleAccount,
-            ),
-          ] else
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFB45309),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: _connectGoogleAccount,
-              child: const Text('Hubungkan', style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildMenuOption({
     required IconData icon,
